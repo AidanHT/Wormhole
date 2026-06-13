@@ -7,6 +7,11 @@ import { PhysicsWorld } from '../physics/PhysicsWorld';
 import { CharacterController } from '../physics/CharacterController';
 import { Level } from '../world/Level';
 import { CHAMBERS, FIRST_CHAMBER } from '../world/chambers';
+import { TriggerRunner } from '../world/TriggerRunner';
+import { Interaction } from '../world/Interaction';
+import { buildElement, Cube, Door, LightZone, Platform, Crusher, Breaker } from '../world/elements';
+import type { ActionDef } from '../world/LevelData';
+import { LINES, lineDuration } from '../story/script';
 import { Hud } from '../ui/Hud';
 import { Input } from './Input';
 import { Loop } from './Loop';
@@ -37,9 +42,16 @@ export class Game {
   time = 0;
   /** Player has the coupler (portal gun)? Set by chamber data / triggers. */
   hasGun = true;
+  interaction: Interaction;
+  triggers: TriggerRunner | null = null;
+  /** Hooks installed by later systems (entity director, audio, scripts). */
+  onAction: ((a: ActionDef) => boolean) | null = null;
+  onPlayerDied: ((cause: string) => void) | null = null;
+  onChamberComplete: ((id: string) => void) | null = null;
   private probes: ProbeRequest[] = [];
   private camEuler = new Euler(0, 0, 0, 'YXZ');
   private lookDir = new Vector3();
+  private respawnTimer = 0;
 
   constructor(public canvas: HTMLCanvasElement, public ui: HTMLElement) {
     const params = new URLSearchParams(location.search);
@@ -52,8 +64,14 @@ export class Game {
     this.traversal.trackPlayer(this.player);
     this.portalRenderer = new PortalRenderer(this.gun.portals);
     this.scene.add(this.gun.amber.group, this.gun.cyan.group);
+    this.interaction = new Interaction(this.player, this.physics);
     this.hud = new Hud(ui, params.get('fps') === '1' || import.meta.env.DEV);
     this.loop = new Loop((dt) => this.update(dt), (dt) => this.render(dt));
+
+    events.on('player.died', ({ cause }) => this.handleDeath(cause));
+    events.on('narrative.line', ({ speaker, text, duration }) => {
+      if (settings.data.subtitles) this.hud.subtitle(speaker, text, duration);
+    });
 
     this.input.bind(canvas);
     this.input.onMouseDownWhileUnlocked = () => {
@@ -101,11 +119,25 @@ export class Game {
       console.error(`Unknown chamber: ${id}`);
       return;
     }
+    this.triggers?.dispose();
     this.level?.dispose();
     this.gun.clearBoth();
     this.traversal.clearCubes();
+    this.interaction.held = null;
     this.level = new Level(data, this.scene, this.physics);
     this.level.build();
+
+    for (const def of data.elements) {
+      const el = buildElement(def, this.scene, this.physics, this.player);
+      this.level.addElement(el);
+      if (el instanceof Cube) this.traversal.trackCube(el.body);
+    }
+    this.triggers = new TriggerRunner(
+      data.triggers,
+      { run: (a) => this.runAction(a) },
+      () => this.player.pos,
+    );
+
     const mode = data.portalMode ?? 'both';
     this.gun.allowAmber = mode === 'both';
     this.gun.allowCyan = mode !== 'none';
@@ -114,6 +146,89 @@ export class Game {
     this.hud.setPortalLit('amber', false);
     this.hud.setPortalLit('cyan', false);
     events.emit('chamber.loaded', { id });
+  }
+
+  /** Rebuild the current chamber from data (death respawn / puzzle reset). */
+  reloadChamber(): void {
+    if (this.level) this.loadChamber(this.level.data.id);
+  }
+
+  /** Execute one declarative trigger action. */
+  runAction(a: ActionDef): void {
+    // Later systems (entity, audio, scripts) get first refusal.
+    if (this.onAction && this.onAction(a)) return;
+    const level = this.level;
+    if (!level) return;
+    switch (a.do) {
+      case 'door': {
+        const door = level.elementById.get(a.id!) as Door | undefined;
+        door?.setOpen(a.open ?? true);
+        break;
+      }
+      case 'narrative': {
+        const line = LINES[a.line!];
+        if (line) {
+          events.emit('narrative.line', {
+            speaker: line.speaker, text: line.text, duration: lineDuration(line),
+          });
+        }
+        break;
+      }
+      case 'objective':
+        this.hud.setObjective(`MERIDIAN-9 // ${level.data.chapter}`, a.text ?? level.data.title);
+        break;
+      case 'lights':
+        if (a.id) level.setLight(a.id, a.on ?? true);
+        else {
+          level.setBlackout(!(a.on ?? true));
+          if (a.duration) {
+            window.setTimeout(() => level.setBlackout(false), a.duration * 1000);
+          }
+        }
+        break;
+      case 'lightZone': {
+        const zone = level.elementById.get(a.id!) as LightZone | undefined;
+        zone?.setActive(a.on ?? true);
+        break;
+      }
+      case 'platform': {
+        const plat = level.elementById.get(a.id!) as Platform | undefined;
+        if (plat) plat.active = a.on ?? true;
+        break;
+      }
+      case 'crusher': {
+        const cr = level.elementById.get(a.id!) as Crusher | undefined;
+        if (cr) cr.active = a.on ?? true;
+        break;
+      }
+      case 'clearPortals':
+        this.gun.clearBoth();
+        this.hud.setPortalLit('amber', false);
+        this.hud.setPortalLit('cyan', false);
+        break;
+      case 'checkpoint':
+        events.emit('checkpoint.saved', { id: a.id ?? level.data.id });
+        break;
+      case 'complete':
+        events.emit('chamber.complete', { id: level.data.id });
+        this.onChamberComplete?.(level.data.id);
+        break;
+      case 'entity':
+      case 'script':
+      case 'sound':
+      case 'tension':
+        // handled by onAction hooks once those systems are installed
+        break;
+    }
+  }
+
+  private handleDeath(cause: string): void {
+    if (this.state !== 'playing' || this.player.dead) return;
+    this.player.dead = true;
+    this.player.controlEnabled = false;
+    this.respawnTimer = 1.4;
+    this.onPlayerDied?.(cause);
+    this.hud.snapDark();
   }
 
   pause(): void {
@@ -134,8 +249,21 @@ export class Game {
     if (this.state !== 'playing') return;
     this.time += dt;
 
+    // death → respawn at chamber checkpoint
+    if (this.player.dead) {
+      this.respawnTimer -= dt;
+      if (this.respawnTimer <= 0) {
+        this.reloadChamber();
+        this.player.controlEnabled = true;
+        this.hud.fadeIn();
+        events.emit('player.respawned', undefined);
+      }
+      return;
+    }
+
     this.physics.beginStep();
     this.level?.update(dt);
+    this.triggers?.update(dt);
 
     const d = this.input.consumeMouseDelta();
     this.player.applyLook(d.dx, d.dy, settings.data.sensitivity);
@@ -147,7 +275,49 @@ export class Game {
       jump: this.input.wasPressed('jump'),
     });
 
+    this.interaction.update();
     for (const box of this.physics.dynamicBoxes) box.update(dt, this.physics);
+
+    // --- interaction (E) ---
+    if (this.player.controlEnabled) {
+      const target = this.interaction.target(this.level);
+      if (this.input.wasPressed('interact')) {
+        if (this.interaction.held) {
+          this.interaction.throwHeld();
+        } else if (target?.kind === 'cube') {
+          this.interaction.pickUp(target.cube);
+        } else if (target?.kind === 'terminal') {
+          if (!target.terminal.read) {
+            target.terminal.markRead();
+            const line = LINES[target.terminal.loreId];
+            if (line) {
+              events.emit('narrative.line', {
+                speaker: line.speaker, text: line.text, duration: lineDuration(line),
+              });
+            }
+            events.emit('lore.read', { id: target.terminal.loreId });
+          }
+        } else if (target?.kind === 'breaker') {
+          if (!target.breaker.thrown) {
+            target.breaker.throwSwitch();
+            events.emit('button.pressed', { id: target.breaker.id });
+          }
+        }
+      }
+      if (this.interaction.held) {
+        this.hud.showPrompt('<b>E</b> THROW');
+      } else if (target?.kind === 'cube') {
+        this.hud.showPrompt('<b>E</b> PICK UP');
+      } else if (target?.kind === 'terminal' && !target.terminal.read) {
+        this.hud.showPrompt('<b>E</b> READ');
+      } else if (target?.kind === 'breaker' && !target.breaker.thrown) {
+        this.hud.showPrompt('<b>E</b> THROW BREAKER');
+      } else {
+        this.hud.showPrompt(null);
+      }
+    } else {
+      this.hud.showPrompt(null);
+    }
 
     // --- portals ---
     this.traversal.update();
@@ -174,10 +344,7 @@ export class Game {
     // fell out of the world
     const killY = this.level?.data.killY ?? -30;
     if (this.player.pos.y < killY) {
-      this.player.spawn(
-        new Vector3(...this.level!.data.spawn.pos),
-        this.level!.data.spawn.yaw,
-      );
+      events.emit('player.died', { cause: 'void' });
     }
 
     if (this.input.wasPressed('pause')) this.pause();
