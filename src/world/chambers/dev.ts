@@ -54,6 +54,14 @@ export const DEV_CHAMBER: ChamberData = {
     { type: 'toxic', id: 'tox1', pos: [9, 0.15, 2], size: [3, 0.35, 3] },
     { type: 'platform', id: 'p1', pos: [-10, 1.2, -6], size: [2, 0.3, 2], to: [-10, 4.2, -6], period: 6 },
     { type: 'terminal', id: 't1', pos: [-12.0, 1.7, 6], dir: '+x', loreId: 'c02.lore1' },
+    { type: 'lightZone', id: 'lz1', pos: [0, 2.5, 5], size: [4, 5, 4], active: true },
+  ],
+  waypoints: [
+    { id: 'w1', pos: [-9, 0, -7], links: ['w2', 'w5'] },
+    { id: 'w2', pos: [0, 0, -7], links: ['w3'] },
+    { id: 'w3', pos: [9, 0, -3], links: ['w4'] },
+    { id: 'w4', pos: [9, 0, 6], links: [] },
+    { id: 'w5', pos: [-9, 0, 6], links: ['w4'] },
   ],
   triggers: [
     {

@@ -9,8 +9,12 @@ import { Level } from '../world/Level';
 import { CHAMBERS, FIRST_CHAMBER } from '../world/chambers';
 import { TriggerRunner } from '../world/TriggerRunner';
 import { Interaction } from '../world/Interaction';
-import { buildElement, Cube, Door, LightZone, Platform, Crusher, Breaker } from '../world/elements';
+import { buildElement, Cube, Door, LightZone, Platform, Crusher } from '../world/elements';
 import type { ActionDef } from '../world/LevelData';
+import { Stalker } from '../entity/Stalker';
+import { Director } from '../entity/Director';
+import { WaypointGraph } from '../entity/Waypoints';
+import { PostFX } from '../render/PostFX';
 import { LINES, lineDuration } from '../story/script';
 import { Hud } from '../ui/Hud';
 import { Input } from './Input';
@@ -44,7 +48,10 @@ export class Game {
   hasGun = true;
   interaction: Interaction;
   triggers: TriggerRunner | null = null;
-  /** Hooks installed by later systems (entity director, audio, scripts). */
+  stalker: Stalker;
+  director: Director;
+  postfx = new PostFX();
+  /** Hooks installed by later systems (audio, scripts, shell). */
   onAction: ((a: ActionDef) => boolean) | null = null;
   onPlayerDied: ((cause: string) => void) | null = null;
   onChamberComplete: ((id: string) => void) | null = null;
@@ -65,6 +72,8 @@ export class Game {
     this.portalRenderer = new PortalRenderer(this.gun.portals);
     this.scene.add(this.gun.amber.group, this.gun.cyan.group);
     this.interaction = new Interaction(this.player, this.physics);
+    this.stalker = new Stalker(this.scene, this.physics, this.player);
+    this.director = new Director(this.stalker);
     this.hud = new Hud(ui, params.get('fps') === '1' || import.meta.env.DEV);
     this.loop = new Loop((dt) => this.update(dt), (dt) => this.render(dt));
 
@@ -99,6 +108,11 @@ export class Game {
   private configurePortalTargets(): void {
     this.portalRenderer.configure(
       settings.data.quality, window.innerWidth, window.innerHeight,
+    );
+    this.postfx.configure(
+      window.innerWidth, window.innerHeight,
+      this.renderer.webgl.getPixelRatio(),
+      settings.data.quality !== 'low',
     );
   }
 
@@ -137,6 +151,9 @@ export class Game {
       { run: (a) => this.runAction(a) },
       () => this.player.pos,
     );
+
+    const zones = this.level.elements.filter((e): e is LightZone => e instanceof LightZone);
+    this.stalker.configure(new WaypointGraph(data.waypoints ?? []), zones);
 
     const mode = data.portalMode ?? 'both';
     this.gun.allowAmber = mode === 'both';
@@ -214,9 +231,15 @@ export class Game {
         this.onChamberComplete?.(level.data.id);
         break;
       case 'entity':
+        this.stalker.setState(
+          (a.set ?? 'dormant') as Parameters<Stalker['setState']>[0], a.at,
+        );
+        break;
+      case 'tension':
+        this.director.setFloor(a.value ?? 0);
+        break;
       case 'script':
       case 'sound':
-      case 'tension':
         // handled by onAction hooks once those systems are installed
         break;
     }
@@ -277,6 +300,9 @@ export class Game {
 
     this.interaction.update();
     for (const box of this.physics.dynamicBoxes) box.update(dt, this.physics);
+
+    this.stalker.update(dt);
+    this.director.update(dt);
 
     // --- interaction (E) ---
     if (this.player.controlEnabled) {
@@ -363,7 +389,16 @@ export class Game {
     this.gun.cyan.updateProximity(cam.position);
     this.portalRenderer.render(this.renderer.webgl, this.scene, cam);
 
+    // entity proximity → glitch; director tension → grain/vignette breathing
+    const stalkerVisible = this.stalker.state !== 'dormant';
+    const prox = stalkerVisible
+      ? Math.max(0, 1 - this.stalker.distanceToPlayer / 7) : 0;
+    this.postfx.glitch = prox * prox;
+    this.postfx.tension = this.director.tension;
+
+    this.renderer.webgl.setRenderTarget(this.postfx.target);
     this.renderer.webgl.render(this.scene, cam);
+    this.postfx.composite(this.renderer.webgl, _dt);
     this.hud.setFps(this.loop.fps);
     this.flushProbes();
   }

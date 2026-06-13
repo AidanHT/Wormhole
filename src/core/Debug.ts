@@ -32,5 +32,13 @@ export function installDebug(game: Game): void {
       cyan: game.gun.cyan.open ? game.gun.cyan.pos.toArray() : null,
     }),
     clearPortals: () => game.gun.clearBoth(),
+    stalker: () => ({
+      state: game.stalker.state,
+      pos: game.stalker.pos.toArray(),
+      dist: game.stalker.distanceToPlayer,
+      tension: game.director.tension,
+    }),
+    setStalker: (state: string, at?: string) =>
+      game.stalker.setState(state as never, at),
   };
 }
