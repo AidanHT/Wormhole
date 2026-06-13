@@ -1,0 +1,24 @@
+{
+  "name": "wormhole",
+  "private": true,
+  "version": "1.0.0",
+  "description": "WORMHOLE — a horror portal-puzzle game. MERIDIAN-9 awaits.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/three": "^0.184.1",
+    "typescript": "^6.0.3",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.8"
+  }
+}
