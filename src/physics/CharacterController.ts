@@ -320,6 +320,16 @@ export class CharacterController {
     this.vel.applyQuaternion(_quat);
     if (this.vel.length() > MAX_SPEED) this.vel.setLength(MAX_SPEED);
 
+    // Exiting low through a wall portal can map the feet below floor level.
+    // If solid ground sits within eye height below the new eye, step onto it —
+    // depenetration alone could otherwise eject the capsule sideways.
+    _rayOrigin.copy(eye);
+    const ground = this.world.raycast(_rayOrigin, _down, this.eyeHeight, this.ignore);
+    if (ground && ground.point.y > this.pos.y) {
+      this.pos.y = ground.point.y;
+      if (this.vel.y < 0) this.vel.y = 0;
+    }
+
     // Re-derive yaw/pitch from the transformed look direction (drops any roll).
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     _look.set(-Math.sin(this.yaw) * cp, sp, -Math.cos(this.yaw) * cp).applyQuaternion(_quat);

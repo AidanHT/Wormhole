@@ -1,5 +1,8 @@
 import { Euler, Scene, Vector3 } from 'three';
 import { Renderer } from '../render/Renderer';
+import { PortalRenderer } from '../render/PortalRenderer';
+import { PortalGun } from '../portal/PortalGun';
+import { Traversal } from '../portal/Traversal';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import { CharacterController } from '../physics/CharacterController';
 import { Level } from '../world/Level';
@@ -27,10 +30,16 @@ export class Game {
   loop: Loop;
   hud: Hud;
   level: Level | null = null;
+  gun: PortalGun;
+  traversal: Traversal;
+  portalRenderer: PortalRenderer;
   state: GameState = 'boot';
   time = 0;
+  /** Player has the coupler (portal gun)? Set by chamber data / triggers. */
+  hasGun = true;
   private probes: ProbeRequest[] = [];
   private camEuler = new Euler(0, 0, 0, 'YXZ');
+  private lookDir = new Vector3();
 
   constructor(public canvas: HTMLCanvasElement, public ui: HTMLElement) {
     const params = new URLSearchParams(location.search);
@@ -38,6 +47,11 @@ export class Game {
 
     this.renderer = new Renderer(canvas);
     this.player = new CharacterController(this.physics);
+    this.gun = new PortalGun(this.physics);
+    this.traversal = new Traversal(this.gun);
+    this.traversal.trackPlayer(this.player);
+    this.portalRenderer = new PortalRenderer(this.gun.portals);
+    this.scene.add(this.gun.amber.group, this.gun.cyan.group);
     this.hud = new Hud(ui, params.get('fps') === '1' || import.meta.env.DEV);
     this.loop = new Loop((dt) => this.update(dt), (dt) => this.render(dt));
 
@@ -52,11 +66,22 @@ export class Game {
     settings.onChange((s) => {
       this.renderer.setQuality(s.quality);
       this.renderer.setFov(s.fov);
+      this.configurePortalTargets();
     });
     this.renderer.setFov(settings.data.fov);
     this.renderer.setQuality(settings.data.quality);
+    this.configurePortalTargets();
 
-    window.addEventListener('resize', () => this.renderer.resize());
+    window.addEventListener('resize', () => {
+      this.renderer.resize();
+      this.configurePortalTargets();
+    });
+  }
+
+  private configurePortalTargets(): void {
+    this.portalRenderer.configure(
+      settings.data.quality, window.innerWidth, window.innerHeight,
+    );
   }
 
   boot(): void {
@@ -77,10 +102,17 @@ export class Game {
       return;
     }
     this.level?.dispose();
+    this.gun.clearBoth();
+    this.traversal.clearCubes();
     this.level = new Level(data, this.scene, this.physics);
     this.level.build();
+    const mode = data.portalMode ?? 'both';
+    this.gun.allowAmber = mode === 'both';
+    this.gun.allowCyan = mode !== 'none';
     this.player.spawn(new Vector3(...data.spawn.pos), data.spawn.yaw);
     this.hud.setObjective(`MERIDIAN-9 // ${data.chapter}`, data.title);
+    this.hud.setPortalLit('amber', false);
+    this.hud.setPortalLit('cyan', false);
     events.emit('chamber.loaded', { id });
   }
 
@@ -117,6 +149,28 @@ export class Game {
 
     for (const box of this.physics.dynamicBoxes) box.update(dt, this.physics);
 
+    // --- portals ---
+    this.traversal.update();
+    this.gun.update(dt);
+    if (this.hasGun && this.player.controlEnabled) {
+      const fireAmber = this.input.wasPressed('fireAmber');
+      const fireCyan = this.input.wasPressed('fireCyan');
+      if (fireAmber || fireCyan) {
+        this.computeLookDir();
+        this.gun.lastFlatLook.set(this.lookDir.x, 0, this.lookDir.z);
+        if (this.gun.lastFlatLook.lengthSq() < 1e-6) this.gun.lastFlatLook.set(0, 0, -1);
+        this.gun.lastFlatLook.normalize();
+        const color = fireAmber ? 'amber' : 'cyan';
+        const res = this.gun.fire(color, this.player.eye.clone(), this.lookDir);
+        if (res.ok) {
+          this.traversal.portalChanged(this.gun.portal(color));
+          this.hud.setPortalLit(color, true);
+        } else {
+          this.hud.denyFlash();
+        }
+      }
+    }
+
     // fell out of the world
     const killY = this.level?.data.killY ?? -30;
     if (this.player.pos.y < killY) {
@@ -138,9 +192,20 @@ export class Game {
     this.camEuler.set(this.player.pitch, this.player.yaw, 0);
     cam.quaternion.setFromEuler(this.camEuler);
 
+    this.gun.amber.updateProximity(cam.position);
+    this.gun.cyan.updateProximity(cam.position);
+    this.portalRenderer.render(this.renderer.webgl, this.scene, cam);
+
     this.renderer.webgl.render(this.scene, cam);
     this.hud.setFps(this.loop.fps);
     this.flushProbes();
+  }
+
+  private computeLookDir(): void {
+    const cp = Math.cos(this.player.pitch), sp = Math.sin(this.player.pitch);
+    this.lookDir.set(
+      -Math.sin(this.player.yaw) * cp, sp, -Math.cos(this.player.yaw) * cp,
+    );
   }
 
   /** Average color of a canvas rect (CSS pixels) — read right after render for e2e. */

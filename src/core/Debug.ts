@@ -27,5 +27,10 @@ export function installDebug(game: Game): void {
     fps: () => game.loop.fps,
     noclip: (on: boolean) => { game.player.noclip = on; },
     probe: (x: number, y: number, w: number, h: number) => game.probe(x, y, w, h),
+    portals: () => ({
+      amber: game.gun.amber.open ? game.gun.amber.pos.toArray() : null,
+      cyan: game.gun.cyan.open ? game.gun.cyan.pos.toArray() : null,
+    }),
+    clearPortals: () => game.gun.clearBoth(),
   };
 }
