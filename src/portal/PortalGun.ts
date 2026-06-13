@@ -53,7 +53,16 @@ export class PortalGun {
     if (color === 'cyan' && !this.allowCyan) return { ok: false, reason: 'notPortalable' };
 
     _dir.copy(lookDir).normalize();
-    const hit = this.physics.raycast(origin, _dir, 60, null, (c) => c.enabled);
+    let hit = this.physics.raycast(origin, _dir, 60, null, (c) => c.enabled);
+    // Forgiveness: if the nearest surface is non-portalable but a portalable
+    // panel sits essentially coplanar with it (a thin dark trim or seam right in
+    // front of the panel), prefer the panel. Keeps placement on pale surfaces
+    // reliable without letting you shoot *through* a real wall (tight 0.2m / same-
+    // facing tolerance means a genuine obstacle in front still blocks).
+    if (hit && !hit.collider.portalable) {
+      const pHit = this.physics.raycast(origin, _dir, 60, null, (c) => c.enabled && !!c.portalable);
+      if (pHit && pHit.t <= hit.t + 0.2 && pHit.normal.dot(hit.normal) > 0.9) hit = pHit;
+    }
     const result = this.tryPlace(color, hit);
     events.emit('portal.fired', { color, ok: result.ok, pos: result.pos });
     if (result.ok) events.emit('portal.opened', { color });

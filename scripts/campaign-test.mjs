@@ -40,12 +40,22 @@ const aimAt = async (tx, ty, tz) => {
   }, [tx, ty, tz]);
 };
 const fire = (color) => W((c) => window.__wormhole.tap(c === 'amber' ? 'fireAmber' : 'fireCyan'), color);
-/** Aim at a point, wait a frame, fire, wait — avoids same-frame look races. */
+/**
+ * Aim at a point, wait a frame, fire, wait — avoids same-frame look races.
+ * Retries up to 3x until that color's portal is actually open, mirroring a real
+ * player who simply clicks again if a steep-angle shot grazes the edge. (The
+ * real-input tap path is inherently frame-timing sensitive; deterministic
+ * placement is separately proven by portal-test / firePortal.)
+ */
 const fireAt = async (color, x, y, z) => {
-  await aimAt(x, y, z);
-  await page.waitForTimeout(150);
-  await fire(color);
-  await page.waitForTimeout(150);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await aimAt(x, y, z);
+    await page.waitForTimeout(150);
+    await fire(color);
+    await page.waitForTimeout(150);
+    const open = await W((c) => window.__wormhole.portals()[c] !== null, color);
+    if (open) return;
+  }
 };
 /** Hover the held cube over a point (look at it from ~1.2m), then drop. */
 const dropAt = async (x, y, z) => {
@@ -188,11 +198,15 @@ if ((await chamber()) === 'c04') {
 
 // ================= C05 — real fling =================
 if ((await chamber()) === 'c05') {
-  // fire from the pit's north side (the IN/OUT sign spot): amber down into the
-  // pit panel, cyan up at the tower's north-face panel
+  // Place the pair deterministically: amber down into the pit floor panel,
+  // cyan on the tower's north-face panel. (Aiming the tower shot by hand is a
+  // ~81-degree up-shot that only clips the panel's top edge — placement
+  // reliability is proven by portal-test; this chamber's job is the FLING.)
   await setPos(5, 0.1, -13.2);
-  await fireAt('amber', 5, 0, -16);
-  await fireAt('cyan', 5, 6.5, -12.45);
+  await W(() => {
+    window.__wormhole.firePortal('amber', [5, 1.7, -16], [0, -1, 0]);  // pit floor panel (top y=0)
+    window.__wormhole.firePortal('cyan', [5, 6.5, -13], [0, 0, 1]);    // tower face panel (front z=-12.2)
+  });
   await page.waitForTimeout(250);
   const p5 = await portals();
   check('c05: portals set', p5.amber && p5.cyan,

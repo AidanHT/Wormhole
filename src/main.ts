@@ -2,6 +2,7 @@ import './ui/style.css';
 import { Game } from './core/Game';
 import { installDebug } from './core/Debug';
 import { AudioRuntime } from './audio';
+import { Tts } from './audio/Tts';
 import { Menu } from './ui/Menu';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -10,6 +11,9 @@ const ui = document.getElementById('ui') as HTMLElement;
 const game = new Game(canvas, ui);
 const audio = new AudioRuntime(game);
 game.audio = audio;
+// robotic narrator voice (Web Speech API) — listens to narrative.line events
+const tts = new Tts();
+void tts;
 const menu = new Menu(ui, game);
 menu.setSfx({
   move: () => audio.sfx.uiMove(),

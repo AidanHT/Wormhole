@@ -239,6 +239,26 @@ export class Game {
     if (this.level) this.loadChamber(this.level.data.id);
   }
 
+  /**
+   * Player-invoked rescue (R / pause menu): rebuild the chamber and respawn at
+   * the last checkpoint — the chamber entry at minimum — to escape a stuck or
+   * glitched state without a death. Resets puzzle elements (cubes/doors) too.
+   */
+  resetToCheckpoint(): void {
+    if (this.state !== 'playing' || this.transitioning) return;
+    const checkpoint = this.lastCheckpoint;
+    this.player.dead = false;
+    this.reloadChamber();
+    const cp = checkpoint ? this.level?.data.checkpointSpawns?.[checkpoint] : null;
+    if (cp) {
+      this.lastCheckpoint = checkpoint;
+      this.player.spawn(new Vector3(...cp.pos), cp.yaw);
+    }
+    this.player.controlEnabled = true;
+    void this.hud.fadeIn();
+    events.emit('player.respawned', undefined);
+  }
+
   /** Execute one declarative trigger action. */
   runAction(a: ActionDef): void {
     // Later systems (entity, audio, scripts) get first refusal.
@@ -403,6 +423,13 @@ export class Game {
       return;
     }
 
+    // player-invoked reset (R) — rebuild the chamber, respawn at last checkpoint
+    if (this.input.wasPressed('reset')) {
+      this.resetToCheckpoint();
+      this.input.endFrame();
+      return;
+    }
+
     this.physics.beginStep();
     this.level?.update(dt);
     this.triggers?.update(dt);
@@ -475,7 +502,12 @@ export class Game {
         this.gun.lastFlatLook.set(this.lookDir.x, 0, this.lookDir.z);
         if (this.gun.lastFlatLook.lengthSq() < 1e-6) this.gun.lastFlatLook.set(0, 0, -1);
         this.gun.lastFlatLook.normalize();
-        const res = this.gun.fire(color, this.player.eye.clone(), this.lookDir);
+        // Fire from the *bobbed* eye — the exact point the crosshair is rendered
+        // from this frame — so aim matches the reticle (head-bob was shifting the
+        // ray ~3cm off, making edge shots on panels feel inconsistent).
+        const origin = this.player.eye.clone();
+        origin.y += Math.sin(this.player.bobPhase * Math.PI * 2) * 0.03;
+        const res = this.gun.fire(color, origin, this.lookDir);
         if (res.ok) {
           this.traversal.portalChanged(this.gun.portal(color));
           this.hud.setPortalLit(color, true);
@@ -503,12 +535,16 @@ export class Game {
     this.camEuler.set(this.player.pitch, this.player.yaw, 0);
     cam.quaternion.setFromEuler(this.camEuler);
 
-    this.gun.amber.updateProximity(cam.position);
-    this.gun.cyan.updateProximity(cam.position);
     // C08 trick: the Vessel exists only in through-portal views this frame
     if (this.mirrorEntity) this.stalker.body.group.visible = true;
     this.portalRenderer.render(this.renderer.webgl, this.scene, cam);
     if (this.mirrorEntity) this.stalker.body.group.visible = false;
+    // Apply the near-plane skirt defense AFTER the RTT passes (which hide skirts
+    // so they don't appear in through-views) — otherwise the skirt is hidden for
+    // the on-screen render too and the view clips into the wall when you stand
+    // in/near a portal.
+    this.gun.amber.updateProximity(cam.position);
+    this.gun.cyan.updateProximity(cam.position);
 
     // entity proximity → glitch; director tension → grain/vignette breathing
     const stalkerVisible = this.stalker.state !== 'dormant';

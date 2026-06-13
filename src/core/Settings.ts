@@ -9,6 +9,7 @@ export interface SettingsData {
   volVoice: number;
   quality: Quality;
   subtitles: boolean;
+  tts: boolean;            // robotic voice reads narrator lines
 }
 
 const KEY = 'wormhole.settings.v1';
@@ -22,6 +23,7 @@ const DEFAULTS: SettingsData = {
   volVoice: 1.0,
   quality: 'high',
   subtitles: true,
+  tts: true,
 };
 
 type Listener = (s: SettingsData) => void;

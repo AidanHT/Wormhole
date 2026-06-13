@@ -113,13 +113,21 @@ export class Menu {
     const div = this.screen(`
       <div class="title" style="font-size:42px">PAUSED</div>
       <button class="btn" data-act="resume">Resume</button>
+      <button class="btn" data-act="reset">Reset to Checkpoint</button>
       <button class="btn" data-act="settings">Settings</button>
       <button class="btn danger" data-act="quit">Quit to Menu</button>
+      <div class="menu-foot">STUCK? PRESS <b>R</b> ANYTIME TO RESET TO THE LAST CHECKPOINT</div>
     `);
     div.querySelector('[data-act="resume"]')!.addEventListener('click', () => {
       this.sfx.confirm();
       this.clear();
       this.game.resume();
+    });
+    div.querySelector('[data-act="reset"]')!.addEventListener('click', () => {
+      this.sfx.confirm();
+      this.clear();
+      this.game.resume();
+      this.game.resetToCheckpoint();
     });
     div.querySelector('[data-act="settings"]')!.addEventListener('click', () => {
       this.sfx.confirm();
@@ -178,6 +186,13 @@ export class Menu {
             <button data-sub="off" class="${!s.subtitles ? 'active' : ''}">Off</button>
           </div>
         </div>
+        <div class="setting-row">
+          <label>Narrator voice</label>
+          <div class="seg">
+            <button data-tts="on" class="${s.tts ? 'active' : ''}">On</button>
+            <button data-tts="off" class="${!s.tts ? 'active' : ''}">Off</button>
+          </div>
+        </div>
       </div>
       <button class="btn" data-act="back" style="margin-top:26px">Back</button>
     `);
@@ -202,6 +217,15 @@ export class Menu {
       b.addEventListener('click', () => {
         settings.set('subtitles', b.dataset.sub === 'on');
         div.querySelectorAll('[data-sub]').forEach((x) => x.classList.toggle('active', x === b));
+        this.sfx.confirm();
+      });
+    });
+    div.querySelectorAll<HTMLButtonElement>('[data-tts]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const on = b.dataset.tts === 'on';
+        settings.set('tts', on);
+        if (!on) try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+        div.querySelectorAll('[data-tts]').forEach((x) => x.classList.toggle('active', x === b));
         this.sfx.confirm();
       });
     });

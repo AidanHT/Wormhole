@@ -4,7 +4,7 @@
  */
 export type Action =
   | 'forward' | 'back' | 'left' | 'right'
-  | 'jump' | 'sprint' | 'interact' | 'fireAmber' | 'fireCyan' | 'pause';
+  | 'jump' | 'sprint' | 'interact' | 'fireAmber' | 'fireCyan' | 'pause' | 'reset';
 
 const KEYMAP: Record<string, Action> = {
   KeyW: 'forward', ArrowUp: 'forward',
@@ -15,6 +15,7 @@ const KEYMAP: Record<string, Action> = {
   ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyE: 'interact',
   KeyP: 'pause',
+  KeyR: 'reset',
   Mouse0: 'fireAmber',
   Mouse2: 'fireCyan',
 };
