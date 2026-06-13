@@ -125,16 +125,35 @@ export class Game {
     );
   }
 
+  /**
+   * Start the loop. With ?chamber= (dev/e2e), boots straight into the chamber;
+   * otherwise the shell shows the main menu (installed via onShowMenu).
+   */
   boot(): void {
     const params = new URLSearchParams(location.search);
-    const chamber = params.get('chamber') ?? FIRST_CHAMBER;
-    this.loadChamber(chamber);
-    this.state = 'playing';
-    this.input.enabled = true;
-    this.hud.setCrosshairVisible(true);
-    this.hud.fadeIn();
+    const direct = params.get('chamber');
+    if (direct) {
+      this.loadChamber(direct);
+      this.state = 'playing';
+      this.input.enabled = true;
+      this.hud.setCrosshairVisible(true);
+      void this.hud.fadeIn();
+    } else if (this.onShowMenu) {
+      this.loadChamber(FIRST_CHAMBER); // menu backdrop renders the first chamber
+      this.onShowMenu();
+      void this.hud.fadeIn(true);
+    } else {
+      this.loadChamber(FIRST_CHAMBER);
+      this.state = 'playing';
+      this.input.enabled = true;
+      this.hud.setCrosshairVisible(true);
+      void this.hud.fadeIn();
+    }
     this.loop.start();
   }
+
+  /** Installed by the shell (Menu). */
+  onShowMenu: (() => void) | null = null;
 
   loadChamber(id: string): void {
     const data = CHAMBERS.get(id);
