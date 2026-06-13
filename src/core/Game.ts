@@ -51,6 +51,8 @@ export class Game {
   stalker: Stalker;
   director: Director;
   postfx = new PostFX();
+  /** Installed by main.ts after construction. */
+  audio: { update(dt: number): void; unlock(): Promise<void> } | null = null;
   /** Hooks installed by later systems (audio, scripts, shell). */
   onAction: ((a: ActionDef) => boolean) | null = null;
   onPlayerDied: ((cause: string) => void) | null = null;
@@ -303,6 +305,7 @@ export class Game {
 
     this.stalker.update(dt);
     this.director.update(dt);
+    this.audio?.update(dt);
 
     // --- interaction (E) ---
     if (this.player.controlEnabled) {
