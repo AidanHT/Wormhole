@@ -22,7 +22,9 @@ const PORTAL_VIEW_DISTANCE = 28;
 
 const _m = new Matrix4();
 const _m2 = new Matrix4();
+const _m3 = new Matrix4();
 const _frustum = new Frustum();
+const _frustum2 = new Frustum();
 const _sphere = new Sphere();
 const _plane = new Plane();
 const _clip = new Vector4();
@@ -107,12 +109,15 @@ export class PortalRenderer {
     // Does the depth-1 view possibly see portal P again (recursion)?
     let useDepth2 = maxDepth >= 2 && p.rt.length >= 2;
     if (useDepth2) {
-      _m2.copy(_m).multiply(camera.matrixWorld); // virtual cam at depth 1
-      _frustum.setFromProjectionMatrix(
-        _m2.copy(camera.projectionMatrix).multiply(_m2.invert()),
-      );
+      // Build the depth-1 virtual camera's view-projection (P · world⁻¹) in a
+      // dedicated scratch + frustum. The previous code aliased _m2 with itself
+      // (giving P⁻², a garbage matrix) and clobbered the shared main-camera
+      // _frustum that shouldRender() still needs for the OTHER portal.
+      _m2.multiplyMatrices(_m, camera.matrixWorld);            // depth-1 virtual world
+      _m3.copy(_m2).invert().premultiply(camera.projectionMatrix); // P · world⁻¹
+      _frustum2.setFromProjectionMatrix(_m3);
       _sphere.set(p.pos, 1.3);
-      useDepth2 = _frustum.intersectsSphere(_sphere);
+      useDepth2 = _frustum2.intersectsSphere(_sphere);
     }
 
     if (useDepth2) {

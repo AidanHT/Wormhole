@@ -76,11 +76,12 @@ export class Game {
     this.renderer = new Renderer(canvas);
     this.player = new CharacterController(this.physics);
     this.gun = new PortalGun(this.physics);
-    this.traversal = new Traversal(this.gun);
+    this.traversal = new Traversal(this.gun, this.physics);
     this.traversal.trackPlayer(this.player);
     this.portalRenderer = new PortalRenderer(this.gun.portals);
     this.scene.add(this.gun.amber.group, this.gun.cyan.group);
     this.interaction = new Interaction(this.player, this.physics);
+    this.interaction.gun = this.gun;
     this.stalker = new Stalker(this.scene, this.physics, this.player);
     this.director = new Director(this.stalker);
     this.hud = new Hud(ui, params.get('fps') === '1' || import.meta.env.DEV);
@@ -133,18 +134,20 @@ export class Game {
     const params = new URLSearchParams(location.search);
     const direct = params.get('chamber');
     if (direct) {
-      this.loadChamber(direct);
+      // state before loadChamber so the chamber-entry checkpoint persists
       this.state = 'playing';
+      this.loadChamber(direct);
       this.input.enabled = true;
       this.hud.setCrosshairVisible(true);
       void this.hud.fadeIn();
     } else if (this.onShowMenu) {
+      // backdrop only: stays non-'playing' so its intro checkpoint won't save
       this.loadChamber(FIRST_CHAMBER); // menu backdrop renders the first chamber
       this.onShowMenu();
       void this.hud.fadeIn(true);
     } else {
-      this.loadChamber(FIRST_CHAMBER);
       this.state = 'playing';
+      this.loadChamber(FIRST_CHAMBER);
       this.input.enabled = true;
       this.hud.setCrosshairVisible(true);
       void this.hud.fadeIn();
@@ -204,6 +207,7 @@ export class Game {
         pos.clone().addScaledVector(normal, 0.2), normal.clone().negate(), 0.6,
       );
       this.gun.portal(fp.color).place(pos, normal, up, back?.collider ?? null);
+      this.traversal.portalChanged(this.gun.portal(fp.color));
       this.hud.setPortalLit(fp.color, true);
     }
 
@@ -289,6 +293,10 @@ export class Game {
         this.hud.setPortalLit('cyan', false);
         break;
       case 'checkpoint':
+        // Only persist while actually playing — the chamber.loaded intro
+        // trigger also fires when a chamber is loaded merely as the menu
+        // backdrop, and saving then would clobber the player's Continue data.
+        if (this.state !== 'playing') break;
         this.lastCheckpoint = a.id ?? null;
         SaveSystem.save({
           chamberId: level.data.id,
@@ -461,14 +469,12 @@ export class Game {
     this.traversal.update();
     this.gun.update(dt);
     if (this.hasGun && this.player.controlEnabled) {
-      const fireAmber = this.input.wasPressed('fireAmber');
-      const fireCyan = this.input.wasPressed('fireCyan');
-      if (fireAmber || fireCyan) {
+      for (const color of ['amber', 'cyan'] as const) {
+        if (!this.input.wasPressed(color === 'amber' ? 'fireAmber' : 'fireCyan')) continue;
         this.computeLookDir();
         this.gun.lastFlatLook.set(this.lookDir.x, 0, this.lookDir.z);
         if (this.gun.lastFlatLook.lengthSq() < 1e-6) this.gun.lastFlatLook.set(0, 0, -1);
         this.gun.lastFlatLook.normalize();
-        const color = fireAmber ? 'amber' : 'cyan';
         const res = this.gun.fire(color, this.player.eye.clone(), this.lookDir);
         if (res.ok) {
           this.traversal.portalChanged(this.gun.portal(color));

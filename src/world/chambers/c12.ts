@@ -12,8 +12,10 @@ export const C12: ChamberData = {
   spawn: { pos: [0, 0.1, 2], yaw: 0 },
   killY: -14,
   checkpointSpawns: {
-    seg1: { pos: [0, 0.1, -20], yaw: 0 },
-    seg2: { pos: [0, 0.1, -40], yaw: 0 },
+    // a metre onto solid floor, not on the gap-side lip (seg1 floor z[-32,-20],
+    // seg2 floor z[-58,-40]) — so a respawn never overhangs the toxic gap.
+    seg1: { pos: [0, 0.1, -22], yaw: 0 },
+    seg2: { pos: [0, 0.1, -42], yaw: 0 },
   },
   geometry: [
     // ---- gauntlet shell (x -6..6, z 4..-58), ceiling 7 ----
@@ -30,17 +32,19 @@ export const C12: ChamberData = {
     { pos: [0, -6.25, -36], size: [12, 0.5, 8], material: 'concrete' },
     { pos: [0, -3, -32.25], size: [12, 6, 0.5], material: 'concrete' },
     { pos: [0, -3, -39.75], size: [12, 6, 0.5], material: 'concrete' },
-    // ---- side walls: BIG generous panels flanking each gap, dark elsewhere ----
-    // west wall
+    // ---- side walls: BIG generous panels flanking each gap, dark elsewhere.
+    // Segments tile z exactly with NO overlap (an overlapping dark segment
+    // would steal the portal raycast from the panel behind it).
+    // west wall: dark[4.5..-8.5] panel[-8.5..-23.5] dark[-23.5..-28.5] panel[-28.5..-43.5] dark[-43.5..-58.5]
     { pos: [-6.25, 3.5, -2], size: [0.5, 7.5, 13], material: 'metalDark' },
     { pos: [-6.25, 3.5, -16], size: [0.5, 7.5, 15], material: 'panel', portalable: true },
-    { pos: [-6.25, 3.5, -28], size: [0.5, 7.5, 9], material: 'metalDark' },
+    { pos: [-6.25, 3.5, -26], size: [0.5, 7.5, 5], material: 'metalDark' },
     { pos: [-6.25, 3.5, -36], size: [0.5, 7.5, 15], material: 'panel', portalable: true },
     { pos: [-6.25, 3.5, -51], size: [0.5, 7.5, 15], material: 'metalDark' },
-    // east wall
+    // east wall (mirror)
     { pos: [6.25, 3.5, -2], size: [0.5, 7.5, 13], material: 'metalDark' },
     { pos: [6.25, 3.5, -16], size: [0.5, 7.5, 15], material: 'panel', portalable: true },
-    { pos: [6.25, 3.5, -28], size: [0.5, 7.5, 9], material: 'metalDark' },
+    { pos: [6.25, 3.5, -26], size: [0.5, 7.5, 5], material: 'metalDark' },
     { pos: [6.25, 3.5, -36], size: [0.5, 7.5, 15], material: 'panel', portalable: true },
     { pos: [6.25, 3.5, -51], size: [0.5, 7.5, 15], material: 'metalDark' },
     // wall between gauntlet and Seam hall, wide opening (x -3..3, y 0..5)

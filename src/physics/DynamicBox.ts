@@ -23,8 +23,6 @@ export class DynamicBox {
   ignore = new Set<Collider>();
   /** Visual orientation, only changed by portal teleports (smoothed back upright by the element). */
   visualQuat = new Quaternion();
-  /** Set when the carry spring is overstretched — element should force-drop. */
-  carryBroken = false;
 
   private aabbCache: AABB = { min: new Vector3(), max: new Vector3() };
 
@@ -41,10 +39,10 @@ export class DynamicBox {
 
   update(dt: number, world: PhysicsWorld): void {
     if (this.carried) {
-      // Kinematic spring toward the hold point.
+      // Kinematic spring toward the hold point. (Break detection lives in
+      // Interaction — distance from the PLAYER, so a fast look flick that
+      // momentarily moves the hold point far from the cube doesn't drop it.)
       _push.subVectors(this.carryTarget, this.pos);
-      const dist = _push.length();
-      this.carryBroken = dist > 2.6;
       this.vel.copy(_push).multiplyScalar(CARRY_STIFFNESS);
       if (this.vel.length() > CARRY_MAX_SPEED) this.vel.setLength(CARRY_MAX_SPEED);
     } else {

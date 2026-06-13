@@ -89,6 +89,9 @@ export class Menu {
   private startGame(chamberId: string, checkpointId: string | null): void {
     this.clear();
     this.game.hud.snapDark();
+    // 'playing' before loadChamber so the chamber-entry checkpoint actually
+    // saves (the checkpoint action is gated on state==='playing').
+    this.game.state = 'playing';
     this.game.loadChamber(chamberId);
     if (checkpointId) {
       const cp = this.game.level?.data.checkpointSpawns?.[checkpointId];
@@ -97,7 +100,6 @@ export class Menu {
         this.game.player.spawn(new Vector3(...cp.pos), cp.yaw);
       }
     }
-    this.game.state = 'playing';
     this.game.input.enabled = true;
     this.game.hud.setCrosshairVisible(true);
     this.game.input.requestLock();

@@ -78,13 +78,16 @@ export const C10: ChamberData = {
   ],
   elements: [
     { type: 'toxic', id: 'chasm', pos: [0, -2.8, -17], size: [15.5, 0.4, 9.4] },
+    // rest bottom raised to y=4.95 (center 5.95 − half 1) so the 1.7m-tall
+    // player (head 4.7) walks upright in the safe window; travel 1.95 keeps the
+    // full slam reaching the floor (center 4.0 − 1 = 3.0) for the lethal hit.
     {
-      type: 'crusher', id: 'cr1', pos: [4.5, 5.5, -27.5], size: [3.8, 2, 2.2],
-      travel: 1.5, period: 3.0, phase: 0,
+      type: 'crusher', id: 'cr1', pos: [4.5, 5.95, -27.5], size: [3.8, 2, 2.2],
+      travel: 1.95, period: 3.0, phase: 0,
     },
     {
-      type: 'crusher', id: 'cr2', pos: [4.5, 5.5, -30.5], size: [3.8, 2, 2.2],
-      travel: 1.5, period: 3.0, phase: 0.5,
+      type: 'crusher', id: 'cr2', pos: [4.5, 5.95, -30.5], size: [3.8, 2, 2.2],
+      travel: 1.95, period: 3.0, phase: 0.5,
     },
     { type: 'lightZone', id: 'flood', pos: [4.5, 5.5, -33], size: [6, 5, 2.4], active: false },
     { type: 'door', id: 'dExit', pos: [4.5, 4.5, -34.25], size: [3.1, 3, 0.6], open: false },

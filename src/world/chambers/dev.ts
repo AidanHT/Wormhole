@@ -50,7 +50,10 @@ export const DEV_CHAMBER: ChamberData = {
   elements: [
     { type: 'cube', id: 'c1', pos: [2, 1, 0] },
     { type: 'button', id: 'b1', pos: [-2, 0, -5] },
-    { type: 'door', id: 'd1', pos: [0, 1.5, -9.25], size: [2.2, 3, 0.6] },
+    // off-center (east side) so it occludes neither the north portalable panel
+    // the portal test fires through / walks into, nor the west wall the test
+    // probes as "blank wall" (button→door logic is unaffected by x)
+    { type: 'door', id: 'd1', pos: [6, 1.5, -9.25], size: [2.2, 3, 0.6] },
     { type: 'toxic', id: 'tox1', pos: [9, 0.15, 2], size: [3, 0.35, 3] },
     { type: 'platform', id: 'p1', pos: [-10, 1.2, -6], size: [2, 0.3, 2], to: [-10, 4.2, -6], period: 6 },
     { type: 'terminal', id: 't1', pos: [-12.0, 1.7, 6], dir: '+x', loreId: 'c02.lore1' },

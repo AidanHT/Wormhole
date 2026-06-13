@@ -17,14 +17,22 @@ export type StalkerState =
 const STALK_SPEED = 2.1;
 const HUNT_SPEED = 4.5;
 const KILL_RANGE = 1.05;
-const LURK_RETREAT_RANGE = 7.5;
-const STARE_RETREAT_SECONDS = 4;
+// Lurkers hold their ground until you come close OR stare too long — letting
+// scripted first-contact beats (behind glass, ~7m away) actually be seen.
+const LURK_RETREAT_RANGE = 4.5;
+const STARE_RETREAT_SECONDS = 5;
 const HUNT_TELEGRAPH = 1.5;
 
 const _toPlayer = new Vector3();
 const _dir = new Vector3();
 const _eyePos = new Vector3();
 const _headPos = new Vector3();
+const _losFrom = new Vector3();
+const _losTo = new Vector3();
+const _moveDir = new Vector3();
+const _moveOrigin = new Vector3();
+/** Horizontal half-extent used to stop the Vessel short of walls. */
+const ENTITY_RADIUS = 0.45;
 
 export class Stalker {
   state: StalkerState = 'dormant';
@@ -105,6 +113,21 @@ export class Stalker {
     return hit === null;
   }
 
+  /**
+   * Clear line from the Vessel's mass to the player — no solid wall between.
+   * Gates the kill (so it can't reach through a thin partition it happens to be
+   * hugging) and forces waypoint routing instead of straight-line pursuit when
+   * a wall blocks the way.
+   */
+  private hasLineToPlayer(): boolean {
+    _losFrom.set(this.pos.x, this.pos.y + 1.0, this.pos.z);
+    _losTo.set(this.player.pos.x, this.player.pos.y + 0.9, this.player.pos.z).sub(_losFrom);
+    const dist = _losTo.length();
+    if (dist < 0.3) return true;
+    _losTo.normalize();
+    return this.physics.raycast(_losFrom, _losTo, dist - 0.2, this.player.ignore) === null;
+  }
+
   private playerInLightZone(): LightZone | null {
     for (const z of this.lightZones) {
       if (z.contains(this.player.pos)) return z;
@@ -183,28 +206,31 @@ export class Stalker {
       return;
     }
     const zone = this.playerInLightZone();
+    const los = this.hasLineToPlayer();
     if (zone) {
       // prowl at the zone border: head to nearest waypoint outside it
       this.followPath(dt, STALK_SPEED, () =>
         this.graph.nearest(this.player.pos, (w) => !this.posInLightZone(w.pos)),
       );
-    } else if (this.graph.size > 0 && this.distanceToPlayer > 3) {
+    } else if (this.graph.size > 0 && (this.distanceToPlayer > 3 || !los)) {
+      // route via waypoints when far OR when a wall blocks the direct line —
+      // it goes around obstacles instead of clipping straight through them.
       this.followPath(dt, HUNT_SPEED, () =>
         this.graph.nearest(this.player.pos, (w) => !this.posInLightZone(w.pos)),
       );
     } else {
-      // direct pursuit for the last meters (no waypoints needed)
+      // direct pursuit for the last clear meters (LOS confirmed open)
       _dir.subVectors(this.player.pos, this.pos);
       _dir.y = 0;
       const d = _dir.length();
       if (d > 0.01) {
-        _dir.normalize();
-        this.pos.addScaledVector(_dir, Math.min(HUNT_SPEED * dt, d));
+        this.moveTowardClamped(this.player.pos, Math.min(HUNT_SPEED * dt, d));
         this.moveSpeedNow = HUNT_SPEED;
         this.body.faceToward(this.player.pos, 10 * dt);
       }
     }
-    if (!zone && this.distanceToPlayer < KILL_RANGE && !this.player.dead) {
+    // kill only with a clear line — never through a wall it's pressed against.
+    if (!zone && los && this.distanceToPlayer < KILL_RANGE && !this.player.dead) {
       this.setState('killing');
       events.emit('entity.killedPlayer', undefined);
       events.emit('player.died', { cause: 'vessel' });
@@ -247,10 +273,27 @@ export class Stalker {
       this.pathIndex++;
       return;
     }
-    _dir.normalize();
-    this.pos.addScaledVector(_dir, Math.min(speed * dt, d));
+    this.moveTowardClamped(target, Math.min(speed * dt, d));
     this.moveSpeedNow = speed;
     this.body.faceToward(target, 6 * dt);
+  }
+
+  /**
+   * Move the Vessel horizontally toward `target`, but never through a solid
+   * wall: raycast ahead at body height and stop a body-width short. Authored
+   * waypoint segments are wall-clear, so normal pursuit is unaffected; this only
+   * engages when something (a partition the player ducked behind) is in the way.
+   */
+  private moveTowardClamped(target: Vector3, step: number): void {
+    _moveDir.set(target.x - this.pos.x, 0, target.z - this.pos.z);
+    const len = _moveDir.length();
+    if (len < 1e-5) return;
+    _moveDir.multiplyScalar(1 / len);
+    _moveOrigin.set(this.pos.x, this.pos.y + 1.0, this.pos.z);
+    const hit = this.physics.raycast(_moveOrigin, _moveDir, step + ENTITY_RADIUS, this.player.ignore);
+    const allowed = hit ? Math.max(0, hit.t - ENTITY_RADIUS) : step;
+    this.pos.x += _moveDir.x * allowed;
+    this.pos.z += _moveDir.z * allowed;
   }
 
   dispose(): void {

@@ -39,8 +39,9 @@ export const C07: ChamberData = {
     { pos: [8, 0.95, -15], size: [3, 0.3, 32], material: 'metalDark', collidable: false },
 
     // ---- north wall with exit doorway at y 1..4 ----
-    { pos: [-3.05, 3, -34.25], size: [14.9, 7.5, 0.5], material: 'concrete' },
-    { pos: [5.55, 3, -34.25], size: [9.9, 7.5, 0.5], material: 'concrete' },
+    // exit doorway gap x -0.1..3.1, y 1..4.75
+    { pos: [-5.175, 3, -34.25], size: [10.15, 7.5, 0.5], material: 'concrete' },
+    { pos: [6.675, 3, -34.25], size: [7.15, 7.5, 0.5], material: 'concrete' },
     { pos: [1.5, 5.75, -34.25], size: [3.2, 2.0, 0.5], material: 'concrete' },
     { pos: [1.5, 0.5, -34.25], size: [3.2, 1.0, 0.5], material: 'concrete' },
     // ---- exit corridor at y 1 ----
@@ -105,12 +106,23 @@ export const C07: ChamberData = {
       ],
     },
     {
+      // the cube on bF runs the ferry; once:false so re-pressing (e.g. with the
+      // cube, after a weight-bypass release stopped it) re-activates it.
       id: 'ferry-on',
       on: 'button.pressed:bF',
+      once: false,
       actions: [
         { do: 'platform', id: 'ferry', on: true },
         { do: 'checkpoint' },
       ],
+    },
+    {
+      // stepping off bF stops the ferry — closes the "ride your own weight"
+      // bypass, forcing the intended cube-on-button (portal-to-island) solution.
+      id: 'ferry-off',
+      on: 'button.released:bF',
+      once: false,
+      actions: [{ do: 'platform', id: 'ferry', on: false }],
     },
     {
       // it loses interest at the far end — or pretends to

@@ -12,8 +12,12 @@ export const C11: ChamberData = {
   spawn: { pos: [0, 0.1, 2], yaw: 0 },
   next: 'c12',
   checkpointSpawns: {
-    west: { pos: [-16, 0.1, -10], yaw: -Math.PI / 2 },
-    east: { pos: [16, 0.1, -10], yaw: Math.PI / 2 },
+    // west: in the safe gap between crushers crW1/crW2 (NOT at -16, crW2's edge,
+    // where a descending crusher could kill on respawn).
+    west: { pos: [-15.3, 0.1, -10], yaw: -Math.PI / 2 },
+    // east: on the near-side safe floor by button b2 (NOT at 16, inside the
+    // toxic trench x∈[14.3,17.7], which was an instant-death respawn loop).
+    east: { pos: [12, 0.1, -10], yaw: Math.PI / 2 },
   },
   geometry: [
     // ---- rotunda (x -10..10, z 4..-20), ceiling 9 ----

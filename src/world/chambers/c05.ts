@@ -45,13 +45,16 @@ export const C05: ChamberData = {
     { pos: [0, -4, -18.25], size: [16, 8, 0.5], material: 'concrete' },
     { pos: [0, -4, -23.75], size: [16, 8, 0.5], material: 'concrete' },
 
-    // ---- exit platform (z -24..-30, top at 1.5 — the fling arc lands here) ----
-    { pos: [0, 0.75, -27], size: [16, 1.5, 6], material: 'concrete' },
+    // ---- exit platform (z -22..-30, top at 1.5 — the fling arc lands here) ----
+    // north edge extended to z=-22 (was -24) so a cautious pure-vertical drop,
+    // which reaches landing height ~0.4m short at z≈-23.6, still lands on top
+    // instead of smacking the platform's north face and falling into the chasm.
+    { pos: [0, 0.75, -26], size: [16, 1.5, 8], material: 'concrete' },
     // bridge from lift top to tower top (walkway at y 8)
     { pos: [-1.5, 7.8, -10], size: [7.4, 0.4, 2], material: 'metalDark', surface: 'metal' },
-    // north wall with exit doorway at platform level (y 1.5..4.5)
-    { pos: [-3.65, 7, -30.25], size: [9.7, 14.5, 0.5], material: 'concrete' },
-    { pos: [3.65, 7, -30.25], size: [9.7, 14.5, 0.5], material: 'concrete' },
+    // north wall with exit doorway gap (x -1.3..1.3) at platform level (y 1.5..4.5)
+    { pos: [-4.775, 7, -30.25], size: [6.95, 14.5, 0.5], material: 'concrete' },
+    { pos: [4.775, 7, -30.25], size: [6.95, 14.5, 0.5], material: 'concrete' },
     { pos: [0, 9.5, -30.25], size: [2.6, 10, 0.5], material: 'concrete' },
     // exit corridor at y 1.5
     { pos: [0, 1.25, -32.5], size: [4, 0.5, 4.5], material: 'floor' },

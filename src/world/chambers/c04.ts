@@ -60,7 +60,9 @@ export const C04: ChamberData = {
     { type: 'door', id: 'dMid', pos: [0, 1.5, -14.25], size: [2.6, 3, 0.6], open: false },
     { type: 'button', id: 'bB', pos: [-3.5, 0, -20] },
     { type: 'door', id: 'dExit', pos: [0, 1.5, -26.25], size: [2.6, 3, 0.6], open: false },
-    { type: 'terminal', id: 't1', pos: [-6.2, 1.7, -18], dir: '+x', loreId: 'c04.lore1' },
+    // sit just in front of the inner wall face (x=-6.0) so the CRT renders on
+    // the wall instead of embedded inside it (was -6.2 → housing buried in wall)
+    { type: 'terminal', id: 't1', pos: [-5.9, 1.7, -18], dir: '+x', loreId: 'c04.lore1' },
   ],
   triggers: [
     {

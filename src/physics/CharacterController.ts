@@ -268,6 +268,11 @@ export class CharacterController {
     const hit = this.world.raycast(_rayOrigin, _down, lift + 0.1, this.ignore);
     if (hit) {
       this.pos.y = hit.point.y;
+    } else {
+      // No ground under the advanced position — the lip was at the brink of a
+      // drop. Don't leave the player floating at +lift; restore the original
+      // height so they walk off the edge and fall naturally (no climb-assist).
+      this.pos.y = _savedPos.y;
     }
     // If we didn't actually gain ground, revert.
     const gainedX = this.pos.x - _savedPos.x;

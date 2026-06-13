@@ -77,6 +77,10 @@ export class Portal {
   matrix = new Matrix4();
   matrixInv = new Matrix4();
   hostCollider: Collider | null = null;
+  /** Every static collider overlapping the tunnel hole — exempted from
+   * collision while a body crosses, so a wall behind the panel can't block it.
+   * Recomputed by Traversal whenever the portal is placed/moved. */
+  tunnelColliders: Collider[] = [];
   linked: Portal | null = null;
 
   group = new Group();
@@ -141,6 +145,7 @@ export class Portal {
   close(): void {
     this.open = false;
     this.hostCollider = null;
+    this.tunnelColliders.length = 0;
     this.group.visible = false;
     this.openAnim = 0;
   }
