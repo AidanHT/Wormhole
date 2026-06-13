@@ -48,6 +48,17 @@ export class AudioRuntime {
       if (this.engine.started) this.ambience.setMood(mood);
       else this.pendingMood = mood;
     });
+
+    // named one-shots for { do: 'sound' } trigger actions
+    game.namedSound = (name) => {
+      switch (name) {
+        case 'slam': this.sfx.doorSlam(); break;
+        case 'stinger': this.sfx.stinger(1); break;
+        case 'stingerSoft': this.sfx.stinger(0.45); break;
+        case 'clank': this.sfx.distantClank(game.player.pos); break;
+        case 'shriek': this.sfx.killShriek(); break;
+      }
+    };
   }
 
   /** Call from a user gesture (menu click / first interaction). */

@@ -70,7 +70,7 @@ export interface ActionDef {
   do:
     | 'door' | 'narrative' | 'checkpoint' | 'complete' | 'entity'
     | 'lights' | 'lightZone' | 'platform' | 'crusher' | 'script'
-    | 'sound' | 'tension' | 'clearPortals' | 'objective';
+    | 'sound' | 'tension' | 'clearPortals' | 'objective' | 'gun';
   id?: string;                // target element/light id
   open?: boolean;             // door
   line?: string;              // narrative line id
@@ -114,7 +114,13 @@ export interface ChamberData {
   elements: ElementDef[];
   triggers: TriggerDef[];
   waypoints?: WaypointDef[];
+  /** Mid-chamber respawn points, referenced by { do: 'checkpoint', id }. */
+  checkpointSpawns?: Record<string, { pos: V3; yaw: number }>;
   next?: string;              // chamber id to load on completion
   /** Allow only this portal color ('amber' fixed exit portal etc.) — used by C02 tutorial. */
   portalMode?: 'both' | 'cyanOnly' | 'none';
+  /** Player has the coupler at chamber start (default true). */
+  hasGun?: boolean;
+  /** Pre-placed portals (C02's fixed amber terminus). */
+  fixedPortals?: { color: 'amber' | 'cyan'; pos: V3; normal: V3; up?: V3 }[];
 }

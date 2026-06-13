@@ -16,7 +16,7 @@ export class Renderer {
       stencil: false,
     });
     this.webgl.toneMapping = ACESFilmicToneMapping;
-    this.webgl.toneMappingExposure = 1.05;
+    this.webgl.toneMappingExposure = 1.18;
     this.webgl.shadowMap.type = PCFSoftShadowMap;
     this.camera = new PerspectiveCamera(80, 1, 0.05, 120);
     this.setQuality('high');

@@ -18,6 +18,7 @@ export class ToxicPool implements LevelElement {
     size: [number, number, number],
     private scene: Scene,
     private player: CharacterController,
+    private physics?: PhysicsWorld,
   ) {
     this.surface = new Mesh(new PlaneGeometry(size[0], size[2]), materials.get('toxic'));
     this.surface.rotation.x = -Math.PI / 2;
@@ -27,12 +28,17 @@ export class ToxicPool implements LevelElement {
   }
 
   update(): void {
-    if (this.player.dead) return;
-    const p = this.player.pos;
-    if (pointInAABB(p, this.kill, 0)) {
+    if (!this.player.dead && pointInAABB(this.player.pos, this.kill, 0)) {
       events.emit('player.died', { cause: 'toxic' });
     }
-    // cubes dissolve in toxic — they respawn via their own out-of-world reset
+    // cubes dissolve: yeet below the world so the Cube element respawns them
+    if (this.physics) {
+      for (const box of this.physics.dynamicBoxes) {
+        if (!box.carried && pointInAABB(box.pos, this.kill, 0)) {
+          box.pos.y = -100;
+        }
+      }
+    }
   }
 
   dispose(): void {

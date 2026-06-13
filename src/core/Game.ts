@@ -16,6 +16,8 @@ import { Director } from '../entity/Director';
 import { WaypointGraph } from '../entity/Waypoints';
 import { PostFX } from '../render/PostFX';
 import { LINES, lineDuration } from '../story/script';
+import { SCRIPTS } from '../world/scripts';
+import { SaveSystem } from './SaveSystem';
 import { Hud } from '../ui/Hud';
 import { Input } from './Input';
 import { Loop } from './Loop';
@@ -57,6 +59,11 @@ export class Game {
   onAction: ((a: ActionDef) => boolean) | null = null;
   onPlayerDied: ((cause: string) => void) | null = null;
   onChamberComplete: ((id: string) => void) | null = null;
+  /** C08 trick: entity visible only inside portal-rendered views. */
+  mirrorEntity = false;
+  /** Mid-chamber checkpoint id reached in the current chamber. */
+  lastCheckpoint: string | null = null;
+  private transitioning = false;
   private probes: ProbeRequest[] = [];
   private camEuler = new Euler(0, 0, 0, 'YXZ');
   private lookDir = new Vector3();
@@ -140,6 +147,9 @@ export class Game {
     this.gun.clearBoth();
     this.traversal.clearCubes();
     this.interaction.held = null;
+    this.lastCheckpoint = null;
+    this.mirrorEntity = false;
+    this.hud.clearSubtitles();
     this.level = new Level(data, this.scene, this.physics);
     this.level.build();
 
@@ -160,11 +170,45 @@ export class Game {
     const mode = data.portalMode ?? 'both';
     this.gun.allowAmber = mode === 'both';
     this.gun.allowCyan = mode !== 'none';
+    this.hasGun = data.hasGun ?? true;
+
+    for (const fp of data.fixedPortals ?? []) {
+      const pos = new Vector3(...fp.pos);
+      const normal = new Vector3(...fp.normal).normalize();
+      const up = fp.up
+        ? new Vector3(...fp.up).normalize()
+        : Math.abs(normal.y) > 0.9
+          ? new Vector3(0, 0, -1)
+          : new Vector3(0, 1, 0).addScaledVector(normal, -normal.y).normalize();
+      // find the host wall just behind the portal so traversal can exempt it
+      const back = this.physics.raycast(
+        pos.clone().addScaledVector(normal, 0.2), normal.clone().negate(), 0.6,
+      );
+      this.gun.portal(fp.color).place(pos, normal, up, back?.collider ?? null);
+      this.hud.setPortalLit(fp.color, true);
+    }
+
     this.player.spawn(new Vector3(...data.spawn.pos), data.spawn.yaw);
     this.hud.setObjective(`MERIDIAN-9 // ${data.chapter}`, data.title);
-    this.hud.setPortalLit('amber', false);
-    this.hud.setPortalLit('cyan', false);
+    this.hud.setPortalLit('amber', this.gun.amber.open);
+    this.hud.setPortalLit('cyan', this.gun.cyan.open);
     events.emit('chamber.loaded', { id });
+  }
+
+  /** Fade to black, load the next chamber, fade back with its chapter card. */
+  async transitionTo(id: string): Promise<void> {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    this.player.controlEnabled = false;
+    await this.hud.fadeOut();
+    this.loadChamber(id);
+    this.player.controlEnabled = true;
+    const data = CHAMBERS.get(id);
+    if (data && data.id !== 'dev') {
+      this.hud.showChapterCard(data.chapter, data.title);
+    }
+    await this.hud.fadeIn();
+    this.transitioning = false;
   }
 
   /** Rebuild the current chamber from data (death respawn / puzzle reset). */
@@ -226,12 +270,23 @@ export class Game {
         this.hud.setPortalLit('cyan', false);
         break;
       case 'checkpoint':
+        this.lastCheckpoint = a.id ?? null;
+        SaveSystem.save({
+          chamberId: level.data.id,
+          checkpointId: a.id ?? null,
+          loreRead: [],
+          playSeconds: this.time,
+          endingSeen: null,
+        });
         events.emit('checkpoint.saved', { id: a.id ?? level.data.id });
         break;
-      case 'complete':
+      case 'complete': {
         events.emit('chamber.complete', { id: level.data.id });
         this.onChamberComplete?.(level.data.id);
+        const next = level.data.next;
+        if (next) void this.transitionTo(next);
         break;
+      }
       case 'entity':
         this.stalker.setState(
           (a.set ?? 'dormant') as Parameters<Stalker['setState']>[0], a.at,
@@ -240,9 +295,16 @@ export class Game {
       case 'tension':
         this.director.setFloor(a.value ?? 0);
         break;
-      case 'script':
+      case 'gun':
+        this.hasGun = a.on ?? true;
+        break;
+      case 'script': {
+        const fn = SCRIPTS[a.name ?? ''];
+        if (fn) fn(this);
+        break;
+      }
       case 'sound':
-        // handled by onAction hooks once those systems are installed
+        this.playNamedSound(a.name ?? '');
         break;
     }
   }
@@ -251,10 +313,32 @@ export class Game {
     if (this.state !== 'playing' || this.player.dead) return;
     this.player.dead = true;
     this.player.controlEnabled = false;
-    this.respawnTimer = 1.4;
+    this.respawnTimer = cause === 'vessel' ? 2.2 : 1.6;
     this.onPlayerDied?.(cause);
     this.hud.snapDark();
+    this.hud.clearSubtitles();
+    const line = LINES['death.' + cause];
+    if (line) {
+      events.emit('narrative.line', {
+        speaker: line.speaker, text: line.text, duration: lineDuration(line),
+      });
+    }
   }
+
+  /** Named one-shots for { do: 'sound' } trigger actions. */
+  playNamedSound(name: string): void {
+    this.namedSound?.(name);
+  }
+  /** Installed by the audio runtime. */
+  namedSound: ((name: string) => void) | null = null;
+
+  /** Endings hand off to the credits screen (installed by the shell in M9). */
+  showCredits(ending: string): void {
+    this.state = 'credits';
+    this.input.exitLock();
+    this.onCredits?.(ending);
+  }
+  onCredits: ((ending: string) => void) | null = null;
 
   pause(): void {
     if (this.state !== 'playing') return;
@@ -274,11 +358,17 @@ export class Game {
     if (this.state !== 'playing') return;
     this.time += dt;
 
-    // death → respawn at chamber checkpoint
+    // death → respawn at chamber (or mid-chamber) checkpoint
     if (this.player.dead) {
       this.respawnTimer -= dt;
       if (this.respawnTimer <= 0) {
+        const checkpoint = this.lastCheckpoint;
         this.reloadChamber();
+        const cp = checkpoint ? this.level?.data.checkpointSpawns?.[checkpoint] : null;
+        if (cp) {
+          this.lastCheckpoint = checkpoint;
+          this.player.spawn(new Vector3(...cp.pos), cp.yaw);
+        }
         this.player.controlEnabled = true;
         this.hud.fadeIn();
         events.emit('player.respawned', undefined);
@@ -390,7 +480,10 @@ export class Game {
 
     this.gun.amber.updateProximity(cam.position);
     this.gun.cyan.updateProximity(cam.position);
+    // C08 trick: the Vessel exists only in through-portal views this frame
+    if (this.mirrorEntity) this.stalker.body.group.visible = true;
     this.portalRenderer.render(this.renderer.webgl, this.scene, cam);
+    if (this.mirrorEntity) this.stalker.body.group.visible = false;
 
     // entity proximity → glitch; director tension → grain/vignette breathing
     const stalkerVisible = this.stalker.state !== 'dormant';

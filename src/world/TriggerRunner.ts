@@ -50,8 +50,8 @@ export class TriggerRunner {
     const [eventName, targetId] = spec.split(':');
     const handler = (payload: unknown) => {
       if (targetId !== undefined) {
-        const id = (payload as { id?: string })?.id;
-        if (id !== targetId) return;
+        const p = payload as { id?: string; color?: string } | undefined;
+        if (p?.id !== targetId && p?.color !== targetId) return;
       }
       this.fire(live);
     };

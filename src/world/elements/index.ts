@@ -33,7 +33,7 @@ export function buildElement(
         def.active ?? true, def.material ?? 'metal', scene, physics,
       );
     case 'toxic':
-      return new ToxicPool(def.id, def.pos, def.size, scene, player);
+      return new ToxicPool(def.id, def.pos, def.size, scene, player, physics);
     case 'crusher':
       return new Crusher(
         def.id, def.pos, def.size, def.travel, def.period,

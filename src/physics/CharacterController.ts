@@ -242,6 +242,16 @@ export class CharacterController {
 
   private tryStepUp(remainX: number, remainZ: number): void {
     const lift = 0.34;
+    // The blocked-velocity remainder is tiny (collisions kill velocity), so a
+    // raw advance leaves the snap-down ray in front of the step and the next
+    // frame's depenetration cancels the gain. Probe at least a capsule radius.
+    const len = Math.hypot(remainX, remainZ);
+    const minAdvance = this.radius + 0.06;
+    if (len > 1e-9 && len < minAdvance) {
+      const k = minAdvance / len;
+      remainX *= k;
+      remainZ *= k;
+    }
     _savedPos.copy(this.pos);
     // Is there headroom?
     const test = makeAABB(

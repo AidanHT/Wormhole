@@ -13,7 +13,7 @@ import {
 export type MaterialName =
   | 'panel' | 'panelGrimy' | 'concrete' | 'floor' | 'ceiling'
   | 'metal' | 'metalDark' | 'hazard' | 'glass' | 'toxic'
-  | 'emissive' | 'emissiveAmber' | 'emissiveRed' | 'black';
+  | 'emissive' | 'emissiveAmber' | 'emissiveRed' | 'emissiveCyan' | 'black';
 
 /** World meters covered by one texture tile, per material. */
 const TEX_SCALE: Record<string, number> = {
@@ -72,6 +72,8 @@ export class MaterialLib {
         return new MeshBasicMaterial({ color: 0xe8a33d });
       case 'emissiveRed':
         return new MeshBasicMaterial({ color: 0x991f1f });
+      case 'emissiveCyan':
+        return new MeshBasicMaterial({ color: 0x46c8c8 });
       case 'black':
         return new MeshStandardMaterial({ color: 0x050607, roughness: 1 });
     }

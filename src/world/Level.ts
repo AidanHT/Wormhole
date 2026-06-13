@@ -145,7 +145,7 @@ export class Level {
     const intensity = def.intensity ?? 18;
     let light: PointLight | SpotLight;
     if (def.type === 'spot') {
-      const spot = new SpotLight(color, intensity, def.distance ?? 26, def.angle ?? 0.7, 0.45, 1.6);
+      const spot = new SpotLight(color, intensity, def.distance ?? 26, def.angle ?? 0.7, 0.45, 1.1);
       spot.position.set(...def.pos);
       const t = def.target ?? [def.pos[0], def.pos[1] - 4, def.pos[2]];
       spot.target.position.set(...t);
@@ -157,7 +157,8 @@ export class Level {
       }
       light = spot;
     } else {
-      light = new PointLight(color, intensity, def.distance ?? 18, 1.8);
+      // decay 1.1 (not physical 2): lights must carry across large chambers
+      light = new PointLight(color, intensity, def.distance ?? 18, 1.1);
       light.position.set(...def.pos);
     }
     this.group.add(light);
