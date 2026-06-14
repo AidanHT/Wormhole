@@ -4,13 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="WORMHOLE — a horror portal-puzzle game. Descend into MERIDIAN-9." />
+    <meta name="theme-color" content="#0a0a0c" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>WORMHOLE</title>
+
+    <!-- Social / link-preview -->
+    <meta property="og:title" content="WORMHOLE" />
+    <meta property="og:description" content="A horror portal-puzzle game. Descend into MERIDIAN-9." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="WORMHOLE" />
+    <meta name="twitter:description" content="A horror portal-puzzle game. Descend into MERIDIAN-9." />
   </head>
   <body>
     <div id="app">
       <canvas id="game"></canvas>
       <div id="ui"></div>
     </div>
+    <noscript>
+      <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:2rem;background:#0a0a0c;color:#c8c8d0;font:16px/1.5 system-ui,sans-serif;text-align:center;">
+        WORMHOLE requires JavaScript and a WebGL2-capable browser. Please enable JavaScript and use a recent desktop browser.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -3,3 +3,4 @@ dist/
 scripts/shots/
 test-results/
 playwright-report/
+.vercel/

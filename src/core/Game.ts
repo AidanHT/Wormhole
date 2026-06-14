@@ -109,6 +109,14 @@ export class Game {
     this.renderer.setQuality(settings.data.quality);
     this.configurePortalTargets();
 
+    // Stop drawing while the WebGL context is gone; rebuild render targets and
+    // restart the loop once the GPU restores it.
+    this.renderer.onContextLost = () => this.loop.stop();
+    this.renderer.onContextRestored = () => {
+      this.configurePortalTargets();
+      this.loop.start();
+    };
+
     window.addEventListener('resize', () => {
       this.renderer.resize();
       this.configurePortalTargets();

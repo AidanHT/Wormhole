@@ -7,6 +7,9 @@ export class Renderer {
   webgl: WebGLRenderer;
   camera: PerspectiveCamera;
   quality: Quality = 'high';
+  /** Wired by Game to pause/resume when the GPU drops the WebGL context. */
+  onContextLost: (() => void) | null = null;
+  onContextRestored: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.webgl = new WebGLRenderer({
@@ -21,6 +24,19 @@ export class Renderer {
     this.camera = new PerspectiveCamera(80, 1, 0.05, 120);
     this.setQuality('high');
     this.resize();
+
+    // The GPU can drop the context (tab backgrounded, low memory, driver reset).
+    // preventDefault() keeps it recoverable; on restore we re-apply renderer
+    // settings so the next frame draws instead of staying black forever.
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.onContextLost?.();
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.setQuality(this.quality);
+      this.resize();
+      this.onContextRestored?.();
+    });
   }
 
   setQuality(q: Quality): void {
