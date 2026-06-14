@@ -46,9 +46,6 @@ export const C11: ChamberData = {
     { pos: [-16, 2, -5.75], size: [12, 4, 0.5], material: 'concrete' },
     { pos: [-16, 2, -14.25], size: [12, 4, 0.5], material: 'concrete' },
     { pos: [-22.25, 2, -10], size: [0.5, 4, 8.5], material: 'concrete' },
-    // crusher rails in the wing corridor (x -15..-12, passage z -8.7..-11.3)
-    { pos: [-13.5, 3.1, -7.6], size: [5, 1.8, 0.4], material: 'metalDark' },
-    { pos: [-13.5, 3.1, -12.4], size: [5, 1.8, 0.4], material: 'metalDark' },
 
     // ---- east wing (x 10..22): toxic trench + panel hop to cube + b2 ----
     { pos: [16, -0.25, -10], size: [12, 0.5, 8], material: 'floor', visible: true },
@@ -87,13 +84,17 @@ export const C11: ChamberData = {
     { kind: 'scratches', pos: [-0.3, 1.8, -8.48], dir: '+z', size: 1.6, seed: 122 },
   ],
   elements: [
-    // west wing: crushers guard the corridor; cube + b1 at the end
+    // west wing: crushers guard the corridor; cube + b1 at the end. z-span 8.4
+    // overruns the 8m-wide wing into both side walls, so the crush zone covers
+    // the whole corridor — no strip to skirt, and anyone shoved against a wall is
+    // still inside the kill bounds rather than wedged alive. Only way through is
+    // timing the slams.
     {
-      type: 'crusher', id: 'crW1', pos: [-13.5, 2.9, -10], size: [2.2, 1.8, 4.4],
+      type: 'crusher', id: 'crW1', pos: [-13.5, 2.9, -10], size: [2.2, 1.8, 8.4],
       travel: 1.9, period: 2.8, phase: 0,
     },
     {
-      type: 'crusher', id: 'crW2', pos: [-17.2, 2.9, -10], size: [2.2, 1.8, 4.4],
+      type: 'crusher', id: 'crW2', pos: [-17.2, 2.9, -10], size: [2.2, 1.8, 8.4],
       travel: 1.9, period: 2.8, phase: 0.5,
     },
     { type: 'cube', id: 'cubeW', pos: [-20.5, 0.6, -12] },

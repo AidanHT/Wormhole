@@ -186,13 +186,6 @@ export class Menu {
             <button data-sub="off" class="${!s.subtitles ? 'active' : ''}">Off</button>
           </div>
         </div>
-        <div class="setting-row">
-          <label>Narrator voice</label>
-          <div class="seg">
-            <button data-tts="on" class="${s.tts ? 'active' : ''}">On</button>
-            <button data-tts="off" class="${!s.tts ? 'active' : ''}">Off</button>
-          </div>
-        </div>
       </div>
       <button class="btn" data-act="back" style="margin-top:26px">Back</button>
     `);
@@ -217,15 +210,6 @@ export class Menu {
       b.addEventListener('click', () => {
         settings.set('subtitles', b.dataset.sub === 'on');
         div.querySelectorAll('[data-sub]').forEach((x) => x.classList.toggle('active', x === b));
-        this.sfx.confirm();
-      });
-    });
-    div.querySelectorAll<HTMLButtonElement>('[data-tts]').forEach((b) => {
-      b.addEventListener('click', () => {
-        const on = b.dataset.tts === 'on';
-        settings.set('tts', on);
-        if (!on) try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
-        div.querySelectorAll('[data-tts]').forEach((x) => x.classList.toggle('active', x === b));
         this.sfx.confirm();
       });
     });

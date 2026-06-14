@@ -48,9 +48,11 @@ export const C10: ChamberData = {
 
     // ---- landing terrace L2 (z -22..-34, top 3) ----
     { pos: [0, 1.5, -28], size: [16, 3, 12], material: 'concrete' },
-    // crusher passage rails on L2 (passage x 2.5..6.5, z -26..-32)
-    { pos: [2.25, 4, -29], size: [0.5, 2, 6], material: 'metalDark' },
-    { pos: [6.75, 4, -29], size: [0.5, 2, 6], material: 'metalDark' },
+    // crusher passage rails on L2 (passage x 2.5..6.5). Run the full z -26..-34
+    // to the north wall so the only way to the exit doorway is under the crushers
+    // — a shorter rail let the player skirt the gauntlet on the open terrace.
+    { pos: [2.25, 4, -30], size: [0.5, 2, 8], material: 'metalDark' },
+    { pos: [6.75, 4, -30], size: [0.5, 2, 8], material: 'metalDark' },
     // north wall with exit doorway at terrace level (x 3..6, y 3..6)
     { pos: [-3.25, 9, -34.25], size: [10.5, 18.5, 0.5], material: 'concrete' },
     { pos: [7.13, 9, -34.25], size: [2.25, 18.5, 0.5], material: 'concrete' },
